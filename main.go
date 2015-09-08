@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/ttaylorr/go-config/config"
+	"github.com/ttaylorr/slack-gitter-bridge/bridge"
 	"github.com/ttaylorr/slack-gitter-bridge/gitter"
 	"github.com/ttaylorr/slack/api"
 )
@@ -13,16 +14,12 @@ func main() {
 	}
 
 	slack := Slack(config)
+	gitter, _ := Gitter(config)
 	slackChannel, _ := config.String("slack.room")
 
-	gitter, err := Gitter(config)
-	if err != nil {
-		panic(err)
-	}
+	bridge := bridge.New(slack, slackChannel, gitter)
 
-	for {
-		PostToSlack(slack, slackChannel, <-gitter.Messages())
-	}
+	bridge.Open()
 }
 
 func Slack(config *config.Configuration) *api.Slack {
@@ -40,18 +37,4 @@ func Gitter(config *config.Configuration) (*gitter.Stream, error) {
 		auth,
 		room,
 	)
-}
-
-func PostToSlack(slack *api.Slack, channel string, msg *gitter.Message) {
-	slack.Request(&api.RequestParam{
-		Method: api.ChatPostMessageMethod,
-		Parameters: map[string]string{
-			"channel":  channel,
-			"text":     msg.Text,
-			"username": msg.Sender.Username,
-			"as_user":  "true",
-			"icon_url": msg.Sender.AvatarUrlSmall,
-		},
-	})
-
 }
