@@ -10,6 +10,7 @@ type Stream struct {
 	room     string
 	auth     string
 	messages chan *Message
+	closer   chan bool
 }
 
 func OpenStream(auth, room string) (*Stream, error) {
@@ -17,6 +18,7 @@ func OpenStream(auth, room string) (*Stream, error) {
 		room:     room,
 		auth:     auth,
 		messages: make(chan *Message),
+		closer:   make(chan bool),
 	}
 
 	go s.parseMessages()
@@ -29,28 +31,45 @@ func (s *Stream) Messages() <-chan *Message {
 }
 
 func (s *Stream) parseMessages() error {
-	req, err := s.request()
-	if err != nil {
-		return err
-	}
-
-	client := new(http.Client)
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
+	resp, rerr := s.openStream()
+	if rerr != nil {
+		return rerr
 	}
 
 	decoder := json.NewDecoder(resp.Body)
-	for {
-		var next = &Message{}
-		if err := decoder.Decode(next); err != nil {
-			return err
-		}
 
-		s.messages <- next
+	var err error
+	for {
+		select {
+		case <-s.closer:
+			break
+		default:
+			var next = &Message{}
+			if derr := decoder.Decode(next); err != nil {
+				err = derr
+				break
+			}
+
+			s.messages <- next
+		}
 	}
 
-	return nil
+	return err
+}
+
+func (s *Stream) Close() {
+	s.closer <- true
+}
+
+func (s *Stream) openStream() (*http.Response, error) {
+	client := new(http.Client)
+
+	req, err := s.request()
+	if err != nil {
+		return nil, err
+	}
+
+	return client.Do(req)
 }
 
 func (s *Stream) request() (*http.Request, error) {
