@@ -45,7 +45,7 @@ func (s *Stream) parseMessages() error {
 			break
 		default:
 			var next = &Message{}
-			if derr := decoder.Decode(next); err != nil {
+			if derr := decoder.Decode(next); derr != nil {
 				err = derr
 				break
 			}
