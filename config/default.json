@@ -1,0 +1,10 @@
+{
+  "gitter": {
+    "auth": "<your-auth-token>",
+    "room": "<room-id>"
+  },
+  "slack": {
+    "auth": "<your-auth-token>",
+    "room": "<room-id>"
+  }
+}
